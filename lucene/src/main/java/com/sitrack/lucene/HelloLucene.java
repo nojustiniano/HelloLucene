@@ -1,6 +1,8 @@
 package com.sitrack.lucene;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -22,10 +24,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 
 public class HelloLucene {
-	private static ScoreDoc[] hits;
-	private static IndexReader reader;
-	private static IndexSearcher searcher;
-	
+
 	public static void main(String[] args) throws IOException, ParseException {
 		// 0. Specify the analyzer for tokenizing text.
 		// The same analyzer should be used for indexing and searching
@@ -44,7 +43,7 @@ public class HelloLucene {
 		addDoc(w, "En la cima de la montaña", "9945333X");
 		w.close();
 
-		String inputText = "";
+		String inputText;
 		Scanner reader = new Scanner(System.in);  // Reading from System.in;
 		
 		while(true){
@@ -57,8 +56,8 @@ public class HelloLucene {
 			// when no field is explicitly specified in the query.
 			Query q = new QueryParser("title", analyzer).parse(inputText);
 			
-			hits = search(q, index);		
-			displayResults();
+			List<Document> documents = search(q, index);
+			displayResults(documents);
 		}
 
 		// reader can only be closed when there
@@ -67,22 +66,29 @@ public class HelloLucene {
 		reader.close();
 	}
 	
-	private static ScoreDoc[] search(Query q, Directory index) throws IOException{
+	private static List<Document> search(Query q, Directory index) throws IOException{
 		int hitsPerPage = 10;
-		reader = DirectoryReader.open(index);
-		searcher = new IndexSearcher(reader);
+        IndexReader reader = DirectoryReader.open(index);
+        IndexSearcher searcher = new IndexSearcher(reader);
 		TopScoreDocCollector collector = TopScoreDocCollector.create(hitsPerPage);
 		searcher.search(q, collector);
-		return collector.topDocs().scoreDocs;
+        ScoreDoc[] hits = collector.topDocs().scoreDocs;
+
+		List<Document> documents = new ArrayList<Document>(0);
+
+        for (ScoreDoc hit : hits) {
+            int docId = hit.doc;
+            documents.add(searcher.doc(docId));
+        }
+
+		return documents;
 	}
 	
-	private static void displayResults() throws IOException{
-		// 4. display results
-		System.out.println("Found " + hits.length + " hits.");
-		for (int i = 0; i < hits.length; ++i) {
-			int docId = hits[i].doc;
-			Document d = searcher.doc(docId);
-			System.out.println((i + 1) + ". " + d.get("isbn") + "\t" + d.get("title"));
+	private static void displayResults(List<Document> documents) throws IOException{
+		System.out.println("Found " + documents.size() + " hits.");
+        int index = 1;
+        for (Document doc : documents) {
+			System.out.println((index) + ". " + doc.get("isbn") + "\t" + doc.get("title"));
 		}
 	}
 
